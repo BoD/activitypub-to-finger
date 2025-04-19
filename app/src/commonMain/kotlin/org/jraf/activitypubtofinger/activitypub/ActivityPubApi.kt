@@ -25,6 +25,7 @@
 
 package org.jraf.activitypubtofinger.activitypub
 
+import com.fleeksoft.ksoup.Ksoup
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -176,7 +177,7 @@ class ActivityPubApi(
   private fun JsonNoteItem.toNote(isRepost: Boolean) = Note(
     attributedTo = if (isRepost) attributedTo else null,
     published = published,
-    content = content,
+    content = Ksoup.parse(content).text(),
     attachment = attachment.map { it.toAttachment() },
   )
 
@@ -194,7 +195,7 @@ suspend fun main() {
   val paginatedOutboxUrl = activityPubApi.getPaginatedOutboxUrl(outboxUrl)
   println("paginatedOutboxUrl: $paginatedOutboxUrl")
   if (paginatedOutboxUrl == null) return
-  val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 3)
+  val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 103)
 //  val outbox = activityPubApi.getOutbox("https://mastodon.social/users/BoD/outbox?min_id=0&page=true", 3)
   println("outbox: ${outbox?.joinToString("\n\n")}")
   if (outbox == null) return

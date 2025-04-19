@@ -7,7 +7,7 @@ group = "org.jraf"
 version = "1.0.0"
 
 kotlin {
-  jvmToolchain(11)
+  jvmToolchain(17)
 }
 
 dependencies {

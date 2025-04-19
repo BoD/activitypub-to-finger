@@ -4,29 +4,33 @@ plugins {
 }
 
 kotlin {
+  jvmToolchain(17)
+
   jvm()
-  jvmToolchain(11)
+
   linuxX64 {
     binaries {
       executable {
         entryPoint = "org.jraf.activitypubtofinger.main"
-        baseName = "ws-to-minitel"
+        baseName = "activitypub-to-finger"
       }
     }
   }
+
   linuxArm64 {
     binaries {
       executable {
         entryPoint = "org.jraf.activitypubtofinger.main"
-        baseName = "ws-to-minitel"
+        baseName = "activitypub-to-finger"
       }
     }
   }
+
   macosArm64 {
     binaries {
       executable {
         entryPoint = "org.jraf.activitypubtofinger.main"
-        baseName = "ws-to-minitel"
+        baseName = "activitypub-to-finger"
       }
     }
   }
@@ -48,6 +52,9 @@ kotlin {
         implementation(Ktor.client.contentNegotiation)
         implementation(Ktor.client.logging)
         implementation(Ktor.plugins.serialization.kotlinx.json)
+
+        // KSoup
+        implementation("com.fleeksoft.ksoup:ksoup-kotlinx:0.2.2")
       }
     }
 
