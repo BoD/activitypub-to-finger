@@ -1,0 +1,10 @@
+.DS_Store
+build
+out
+.gradle
+*.iml
+.idea/*
+!.idea/copyright
+!.idea/codeStyles
+storage-state.json
+.kotlin
