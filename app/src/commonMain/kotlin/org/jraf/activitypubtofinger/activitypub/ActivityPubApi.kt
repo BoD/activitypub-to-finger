@@ -43,6 +43,13 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.FormatStringsInDatetimeFormats
+import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import org.jraf.activitypubtofinger.activitypub.json.JsonAnnounceOutboxItem
 import org.jraf.activitypubtofinger.activitypub.json.JsonAttachment
@@ -54,6 +61,7 @@ import org.jraf.activitypubtofinger.activitypub.json.JsonOutboxResults
 import org.jraf.activitypubtofinger.activitypub.json.JsonWebFingerResults
 import org.jraf.activitypubtofinger.util.logd
 import org.jraf.activitypubtofinger.util.logw
+import org.jraf.activitypubtofinger.util.wrapped
 
 class ActivityPubApi(
   private val coroutineScope: CoroutineScope,
@@ -134,6 +142,10 @@ class ActivityPubApi(
         header("Accept", "application/activity+json")
       }.body()
       outboxResults.orderedItems
+        // Filter out replies
+        .filterNot {
+          it is JsonCreateOutboxItem && it.`object`.inReplyTo != null
+        }
         .take(limit)
         .map {
           when (it) {
@@ -174,19 +186,33 @@ class ActivityPubApi(
     val url: String,
   )
 
-  private fun JsonNoteItem.toNote(isRepost: Boolean) = Note(
-    attributedTo = if (isRepost) attributedTo else null,
-    published = published,
-    content = Ksoup.parse(content).text(),
-    attachment = attachment.map { it.toAttachment() },
-  )
+  private fun JsonNoteItem.toNote(isRepost: Boolean): Note {
+    val document = Ksoup.parse(content)
+    document.select("p").before("\n").after("\n")
+    val textContent = document.wholeText().trim()
+    return Note(
+      attributedTo = if (isRepost) attributedTo else null,
+      published = Instant.parse(published).toLocalDateTime(TimeZone.currentSystemDefault()).format(DATE_TIME_FORMAT),
+      content = textContent,
+      attachment = attachment.map { it.toAttachment() },
+    )
+  }
 
   private fun JsonAttachment.toAttachment() = Attachment(url = url)
+
+  companion object {
+    private val DATE_TIME_FORMAT by lazy {
+      LocalDateTime.Format {
+        @OptIn(FormatStringsInDatetimeFormats::class)
+        byUnicodePattern("yyyy-MM-dd, HH:mm")
+      }
+    }
+  }
 }
 
 suspend fun main() {
   val activityPubApi = ActivityPubApi(CoroutineScope(Dispatchers.IO + SupervisorJob()))
-  val href = activityPubApi.webFinger("@BoD@mastodon.social")
+  val href = activityPubApi.webFinger("@botteaap@androiddev.social")
   println("href: $href")
   if (href == null) return
   val outboxUrl = activityPubApi.getOutboxUrl(href)
@@ -195,8 +221,7 @@ suspend fun main() {
   val paginatedOutboxUrl = activityPubApi.getPaginatedOutboxUrl(outboxUrl)
   println("paginatedOutboxUrl: $paginatedOutboxUrl")
   if (paginatedOutboxUrl == null) return
-  val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 103)
-//  val outbox = activityPubApi.getOutbox("https://mastodon.social/users/BoD/outbox?min_id=0&page=true", 3)
-  println("outbox: ${outbox?.joinToString("\n\n")}")
+  val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 3)
+  println("outbox: ${outbox?.joinToString("\n\n") { it.content.wrapped(72) }}")
   if (outbox == null) return
 }

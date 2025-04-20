@@ -42,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 import org.jraf.activitypubtofinger.activitypub.ActivityPubApi
 import org.jraf.activitypubtofinger.util.logd
 import org.jraf.activitypubtofinger.util.logi
+import org.jraf.activitypubtofinger.util.wrapped
 
 private class ActivityPubToFinger() {
   companion object {
@@ -80,12 +81,53 @@ private class ActivityPubToFinger() {
     val href = activityPubApi.webFinger(address)
     logd("href: $href")
     if (href == null) {
-      writeChannel.writeString("User ${address}not found\n")
+      writeChannel.writeString("User $address not found\n")
       clientSocket.close()
       return
     }
-
-    writeChannel.writeString("Hello, $href\n")
+    val outboxUrl = activityPubApi.getOutboxUrl(href)
+    println("outboxUrl: $outboxUrl")
+    if (outboxUrl == null) {
+      writeChannel.writeString("User $address not found\n")
+      clientSocket.close()
+      return
+    }
+    val paginatedOutboxUrl = activityPubApi.getPaginatedOutboxUrl(outboxUrl)
+    println("paginatedOutboxUrl: $paginatedOutboxUrl")
+    if (paginatedOutboxUrl == null) {
+      writeChannel.writeString("User $address not found\n")
+      clientSocket.close()
+      return
+    }
+    val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 3)
+    if (outbox == null || outbox.isEmpty()) {
+      writeChannel.writeString("Posts from $address not found\n")
+      clientSocket.close()
+      return
+    }
+    val intro = "Last ${outbox.size} posts from $address:"
+    writeChannel.writeString("$intro\n")
+    val separator = buildString { repeat(72) { append("-") } }
+    writeChannel.writeString("\n$separator\n\n")
+    for (note in outbox) {
+      writeChannel.writeString("${note.published}\n\n")
+      if (note.attributedTo != null) {
+        writeChannel.writeString("Repost from ${note.attributedTo}:\n")
+      }
+      writeChannel.writeString("${note.content.wrapped(72)}\n")
+      if (note.attachment.isNotEmpty()) {
+        val attachmentTitle = if (note.attachment.size == 1) {
+          "Attachment"
+        } else {
+          "Attachments"
+        }
+        val prefix = if (note.attachment.size > 1) "- " else ""
+        writeChannel.writeString("\n$attachmentTitle:\n${note.attachment.joinToString("\n") { "$prefix${it.url}" }}\n")
+      }
+      writeChannel.writeString("\n$separator\n\n")
+    }
+    writeChannel.writeString("See more posts at $href\n")
+    writeChannel.writeString("Have a nice day!\n")
     clientSocket.close()
   }
 }

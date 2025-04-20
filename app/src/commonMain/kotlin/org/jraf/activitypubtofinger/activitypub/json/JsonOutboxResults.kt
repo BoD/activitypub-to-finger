@@ -54,6 +54,7 @@ data class JsonNoteItem(
   val published: String,
   val content: String,
   val attachment: List<JsonAttachment>,
+  val inReplyTo: String? = null,
 )
 
 @Serializable
