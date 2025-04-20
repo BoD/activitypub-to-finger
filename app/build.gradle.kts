@@ -54,7 +54,7 @@ kotlin {
         implementation(Ktor.plugins.serialization.kotlinx.json)
 
         // KSoup
-        implementation("com.fleeksoft.ksoup:ksoup-kotlinx:0.2.2")
+        implementation("com.fleeksoft.ksoup:ksoup-kotlinx:_")
       }
     }
 
