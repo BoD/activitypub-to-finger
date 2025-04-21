@@ -17,54 +17,48 @@ kotlin {
     }
   }
 
-  linuxArm64 {
-    binaries {
-      executable {
-        entryPoint = "org.jraf.activitypubtofinger.main"
-        baseName = "activitypub-to-finger"
-      }
-    }
-  }
-
-  macosArm64 {
-    binaries {
-      executable {
-        entryPoint = "org.jraf.activitypubtofinger.main"
-        baseName = "activitypub-to-finger"
-      }
-    }
-  }
-
   sourceSets {
     commonMain {
       dependencies {
-        // Argument parsing
-        implementation("com.github.ajalt.clikt:clikt:_")
-
         // Date/time
         implementation(KotlinX.datetime)
 
         // Ktor server
         implementation(Ktor.plugins.network)
 
+        // Ktor http server
+        implementation(Ktor.server.core)
+        implementation(Ktor.server.defaultHeaders)
+
         // Ktor client
         implementation(Ktor.client.core)
+        implementation(Ktor.server.cio)
         implementation(Ktor.client.contentNegotiation)
         implementation(Ktor.client.logging)
         implementation(Ktor.plugins.serialization.kotlinx.json)
 
         // KSoup
         implementation("com.fleeksoft.ksoup:ksoup-kotlinx:_")
+
+        // Crypto
+        implementation("dev.whyoleg.cryptography:cryptography-core:_")
+
+        // Env variables
+        implementation("dev.scottpierce:kotlin-env-var:_")
       }
     }
 
     jvmMain {
       dependencies {
+
         // Ktor client
         implementation(Ktor.client.okHttp)
 
         // Disable slf4j warning
         implementation("org.slf4j:slf4j-nop:_")
+
+        // Crypto
+        implementation("dev.whyoleg.cryptography:cryptography-provider-jdk:_")
       }
     }
 
@@ -75,6 +69,10 @@ kotlin {
         // sudo apt-get install libcurl4-gnutls-dev
         // See https://ktor.io/docs/client-engines.html#curl
         implementation(Ktor.client.curl)
+
+        // Crypto
+        // See https://whyoleg.github.io/cryptography-kotlin/modules/cryptography-provider-openssl3/#using-in-your-projects
+        implementation("dev.whyoleg.cryptography:cryptography-provider-openssl3-prebuilt:_")
       }
     }
   }

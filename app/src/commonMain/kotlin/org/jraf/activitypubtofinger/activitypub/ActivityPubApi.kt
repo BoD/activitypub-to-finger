@@ -33,16 +33,15 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -61,11 +60,14 @@ import org.jraf.activitypubtofinger.activitypub.json.JsonOutboxResults
 import org.jraf.activitypubtofinger.activitypub.json.JsonWebFingerResults
 import org.jraf.activitypubtofinger.util.logd
 import org.jraf.activitypubtofinger.util.logw
-import org.jraf.activitypubtofinger.util.wrapped
 
 class ActivityPubApi(
   private val coroutineScope: CoroutineScope,
+  private val identity: Identity,
+  private val publicHttpServerBaseUrl: String,
 ) {
+  private val httpSignature = HttpSignature(identity)
+
   private val httpClient = HttpClient {
     install(ContentNegotiation) {
       json(
@@ -87,7 +89,8 @@ class ActivityPubApi(
           logd("http - $message")
         }
       }
-      level = LogLevel.ALL
+//      level = LogLevel.ALL
+      level = LogLevel.INFO
     }
   }
 
@@ -111,6 +114,7 @@ class ActivityPubApi(
     return runCatching {
       val outboxUrlResults: JsonGetOutboxUrlResults = httpClient.get(href) {
         header("Accept", "application/activity+json")
+        httpSignature(href)
       }.body()
       outboxUrlResults.outbox
     }
@@ -124,6 +128,7 @@ class ActivityPubApi(
     return runCatching {
       val paginatedOutboxUrlResults: JsonGetPaginatedOutboxUrlResults = httpClient.get(outboxUrl) {
         header("Accept", "application/activity+json")
+        httpSignature(outboxUrl)
       }.body()
       paginatedOutboxUrlResults.first
     }
@@ -140,6 +145,7 @@ class ActivityPubApi(
     return runCatching {
       val outboxResults: JsonOutboxResults = httpClient.get(paginatedOutboxUrl) {
         header("Accept", "application/activity+json")
+        httpSignature(paginatedOutboxUrl)
       }.body()
       outboxResults.orderedItems
         // Filter out replies
@@ -166,6 +172,7 @@ class ActivityPubApi(
     return runCatching {
       val note: JsonNoteItem = httpClient.get(noteUrl) {
         header("Accept", "application/activity+json")
+        httpSignature(noteUrl)
       }.body()
       note
     }
@@ -173,6 +180,20 @@ class ActivityPubApi(
         logw(t, "Get Note failed")
       }
       .getOrNull()
+  }
+
+  private suspend fun HttpRequestBuilder.httpSignature(url: String) {
+    val host = url.substringAfter("https://").substringBefore("/")
+    header("host", host)
+    val httpFormattedDate = getHttpFormattedDate()
+    header("date", httpFormattedDate)
+    val resource = url.substringAfter("https://").substringAfter("/")
+    val requestTarget = "get /$resource"
+    val signatureString = "(request-target): $requestTarget\nhost: $host\ndate: $httpFormattedDate"
+    val signedBase64 = httpSignature.base64Sign(signatureString)
+    val signatureHeader =
+      """keyId="$publicHttpServerBaseUrl/${identity.userName}",headers="(request-target) host date",signature="$signedBase64""""
+    header("signature", signatureHeader)
   }
 
   data class Note(
@@ -192,7 +213,7 @@ class ActivityPubApi(
     val textContent = document.wholeText().trim()
     return Note(
       attributedTo = if (isRepost) attributedTo else null,
-      published = Instant.parse(published).toLocalDateTime(TimeZone.currentSystemDefault()).format(DATE_TIME_FORMAT),
+      published = Instant.parse(published).toLocalDateTime(TimeZone.currentSystemDefault()).format(ACTIVITY_PUB_DATE_TIME_FORMAT),
       content = textContent,
       attachment = attachment.map { it.toAttachment() },
     )
@@ -200,28 +221,37 @@ class ActivityPubApi(
 
   private fun JsonAttachment.toAttachment() = Attachment(url = url)
 
+
   companion object {
-    private val DATE_TIME_FORMAT by lazy {
+    private val ACTIVITY_PUB_DATE_TIME_FORMAT by lazy {
       LocalDateTime.Format {
         @OptIn(FormatStringsInDatetimeFormats::class)
-        byUnicodePattern("yyyy-MM-dd, HH:mm")
+        byUnicodePattern("yyyy-MM-dd', 'HH:mm' GMT'")
       }
     }
-  }
-}
 
-suspend fun main() {
-  val activityPubApi = ActivityPubApi(CoroutineScope(Dispatchers.IO + SupervisorJob()))
-  val href = activityPubApi.webFinger("@botteaap@androiddev.social")
-  println("href: $href")
-  if (href == null) return
-  val outboxUrl = activityPubApi.getOutboxUrl(href)
-  println("outboxUrl: $outboxUrl")
-  if (outboxUrl == null) return
-  val paginatedOutboxUrl = activityPubApi.getPaginatedOutboxUrl(outboxUrl)
-  println("paginatedOutboxUrl: $paginatedOutboxUrl")
-  if (paginatedOutboxUrl == null) return
-  val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 3)
-  println("outbox: ${outbox?.joinToString("\n\n") { it.content.wrapped(72) }}")
-  if (outbox == null) return
+    private val HTTP_DATE_TIME_FORMAT by lazy {
+      LocalDateTime.Format {
+        @OptIn(FormatStringsInDatetimeFormats::class)
+        byUnicodePattern("'<day>', dd '<month>' yyyy HH:mm:ss 'GMT'")
+      }
+    }
+
+    private fun getHttpFormattedDate(): String {
+      val localDateTime = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+      return localDateTime.format(HTTP_DATE_TIME_FORMAT)
+        .replace(
+          "<day>",
+          localDateTime.dayOfWeek.name.lowercase()
+            .take(3)
+            .replaceFirstChar { it.titlecase() },
+        )
+        .replace(
+          "<month>",
+          localDateTime.month.name.lowercase()
+            .take(3)
+            .replaceFirstChar { it.titlecase() },
+        )
+    }
+  }
 }
