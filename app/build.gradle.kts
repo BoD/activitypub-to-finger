@@ -45,6 +45,9 @@ kotlin {
 
         // Env variables
         implementation("dev.scottpierce:kotlin-env-var:_")
+
+        // Logging
+        implementation("org.jraf:klibnanolog:_")
       }
     }
 

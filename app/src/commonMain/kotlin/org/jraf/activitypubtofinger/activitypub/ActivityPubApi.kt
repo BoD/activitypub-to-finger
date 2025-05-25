@@ -58,8 +58,8 @@ import org.jraf.activitypubtofinger.activitypub.json.JsonGetPaginatedOutboxUrlRe
 import org.jraf.activitypubtofinger.activitypub.json.JsonNoteItem
 import org.jraf.activitypubtofinger.activitypub.json.JsonOutboxResults
 import org.jraf.activitypubtofinger.activitypub.json.JsonWebFingerResults
-import org.jraf.activitypubtofinger.util.logd
-import org.jraf.activitypubtofinger.util.logw
+import org.jraf.klibnanolog.logd
+import org.jraf.klibnanolog.logw
 
 class ActivityPubApi(
   private val coroutineScope: CoroutineScope,

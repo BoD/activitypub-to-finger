@@ -39,8 +39,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jraf.activitypubtofinger.activitypub.ActivityPubApi
 import org.jraf.activitypubtofinger.activitypub.Identity
-import org.jraf.activitypubtofinger.util.logd
 import org.jraf.activitypubtofinger.util.wrapped
+import org.jraf.klibnanolog.logd
 
 /**
  * Finger is on port 79.

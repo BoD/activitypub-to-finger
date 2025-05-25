@@ -33,8 +33,8 @@ import kotlinx.coroutines.runBlocking
 import org.jraf.activitypubtofinger.activitypub.Identity
 import org.jraf.activitypubtofinger.finger.FingerServer
 import org.jraf.activitypubtofinger.http.HttpServer
-import org.jraf.activitypubtofinger.util.logd
-import org.jraf.activitypubtofinger.util.logi
+import org.jraf.klibnanolog.logd
+import org.jraf.klibnanolog.logi
 
 fun main() {
   logi("BoD activitypub-to-finger v1.0.0")
