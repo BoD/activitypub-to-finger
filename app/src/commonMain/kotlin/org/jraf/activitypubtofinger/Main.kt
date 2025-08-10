@@ -37,7 +37,7 @@ import org.jraf.klibnanolog.logd
 import org.jraf.klibnanolog.logi
 
 fun main() {
-  logi("BoD activitypub-to-finger v1.0.0")
+  logi("BoD activitypub-to-finger v1.0.1")
 
   // e.g. finger.example.com
   val publicHttpServerName = EnvVar.require("PUBLIC_HTTP_SERVER_NAME")

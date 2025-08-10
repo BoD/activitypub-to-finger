@@ -2,25 +2,25 @@
 
 pluginManagement {
   repositories {
-    mavenLocal()
     mavenCentral()
     gradlePluginPortal()
+    mavenLocal()
   }
 }
 
 dependencyResolutionManagement {
   repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
   repositories {
-    mavenLocal()
     mavenCentral()
+    mavenLocal()
   }
 }
 
 plugins {
-  id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
+  id("org.gradle.toolchains.foojay-resolver-convention").version("1.0.0")
 
   // See https://jmfayard.github.io/refreshVersions
-  id("de.fayard.refreshVersions") version "0.60.5"
+  id("de.fayard.refreshVersions").version("0.60.5")
 }
 
 rootProject.name = "activitypub-to-finger"

@@ -41,6 +41,7 @@ import org.jraf.activitypubtofinger.activitypub.ActivityPubApi
 import org.jraf.activitypubtofinger.activitypub.Identity
 import org.jraf.activitypubtofinger.util.wrapped
 import org.jraf.klibnanolog.logd
+import org.jraf.klibnanolog.logw
 
 /**
  * Finger is on port 79.
@@ -70,7 +71,17 @@ class FingerServer(
       val clientSocket = serverSocket.accept()
       logd("Accepted connection from ${clientSocket.remoteAddress}")
       coroutineScope.launch {
-        handleClient(clientSocket)
+        try {
+          handleClient(clientSocket)
+        } catch (e: Exception) {
+          logw(e, "Error handling client")
+        } finally {
+          try {
+            clientSocket.close()
+          } catch (closeException: Exception) {
+            logw(closeException, "Error closing client socket")
+          }
+        }
       }
     }
   }
@@ -85,34 +96,29 @@ class FingerServer(
     }
     if (!address.matches(addressRegex)) {
       writeChannel.writeString("Invalid address\n")
-      clientSocket.close()
       return
     }
     val href = activityPubApi.webFinger(address)
     logd("href: $href")
     if (href == null) {
       writeChannel.writeString("User $address not found\n")
-      clientSocket.close()
       return
     }
     val outboxUrl = activityPubApi.getOutboxUrl(href)
     logd("outboxUrl: $outboxUrl")
     if (outboxUrl == null) {
       writeChannel.writeString("User $address not found\n")
-      clientSocket.close()
       return
     }
     val paginatedOutboxUrl = activityPubApi.getPaginatedOutboxUrl(outboxUrl)
     logd("paginatedOutboxUrl: $paginatedOutboxUrl")
     if (paginatedOutboxUrl == null) {
       writeChannel.writeString("User $address not found\n")
-      clientSocket.close()
       return
     }
     val outbox = activityPubApi.getOutbox(paginatedOutboxUrl, 3)
     if (outbox.isNullOrEmpty()) {
       writeChannel.writeString("Posts from $address not found\n")
-      clientSocket.close()
       return
     }
     val intro = if (outbox.size > 1) {
@@ -142,6 +148,5 @@ class FingerServer(
     }
     writeChannel.writeString("\nSee more posts at $href.\n")
     writeChannel.writeString("Have a nice day!\n")
-    clientSocket.close()
   }
 }

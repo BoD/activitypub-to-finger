@@ -41,8 +41,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
@@ -60,6 +58,9 @@ import org.jraf.activitypubtofinger.activitypub.json.JsonOutboxResults
 import org.jraf.activitypubtofinger.activitypub.json.JsonWebFingerResults
 import org.jraf.klibnanolog.logd
 import org.jraf.klibnanolog.logw
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 class ActivityPubApi(
   private val coroutineScope: CoroutineScope,
@@ -207,6 +208,7 @@ class ActivityPubApi(
     val url: String,
   )
 
+  @OptIn(ExperimentalTime::class)
   private fun JsonNoteItem.toNote(isRepost: Boolean): Note {
     val document = Ksoup.parse(content)
     document.select("p").before("\n").after("\n")
@@ -237,6 +239,7 @@ class ActivityPubApi(
       }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun getHttpFormattedDate(): String {
       val localDateTime = Clock.System.now().toLocalDateTime(TimeZone.UTC)
       return localDateTime.format(HTTP_DATE_TIME_FORMAT)
